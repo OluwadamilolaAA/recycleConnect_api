@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { env } from "./config/env.js";
 import authRoutes from "./modules/auth/auth.routes.js";
+import { errorMiddleware } from "./middlewares/error.middleware.js";
 
 const app = express();
 
@@ -26,5 +27,7 @@ app.get("/health", (_req, res) => {
     message: "RecycleConnect API is running",
   });
 });
+
+app.use(errorMiddleware);
 
 export default app;

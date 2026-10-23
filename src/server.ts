@@ -1,6 +1,7 @@
 import app from "./app.js";
 import { env } from "./config/env.js";
 import { prisma } from "./lib/prisma.js";
+import { redis } from "./lib/redis.js";
 
 try {
   await prisma.$connect();
@@ -13,6 +14,7 @@ try {
 
   try {
     await prisma.$disconnect();
+    await redis.quit();
   } catch (disconnectError) {
     console.error("Failed to disconnect Prisma:", disconnectError);
   }
