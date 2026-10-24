@@ -225,4 +225,119 @@ export class AuthService {
 
         return user;
     }
+
+    //Refresh token
+    async refresh(refreshToken: string) {
+        const tokenHash = hashToken(refreshToken);
+        
+        const existingToken = await this.authRepository.findRefreshTokenByHash(
+                tokenHash,
+            );
+
+        if (!existingToken) {
+            throw new UnauthorizedError(
+                "Invalid refresh token. Please log in again.",
+            );
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            await this.authRepository.lockUserForLogin(
+                existingToken.session.userId,
+                tx,
+            );
+
+            // Read again after acquiring the lock.
+            const currentToken = await this.authRepository.findRefreshTokenByHash(
+                    tokenHash,
+                    tx,
+                );
+
+            if (!currentToken) {
+                return null;
+            }
+
+            const session = currentToken.session;
+
+            const now = new Date();
+
+            if (
+                session.revokedAt ||
+                session.expiresAt <= now
+            ) {
+                return null;
+            }
+
+            // A previously used token has been submitted again.
+            if (currentToken.consumedAt) {
+                await this.authRepository.revokeSession(
+                    session.id,
+                    now,
+                    tx,
+                );
+
+                // Return instead of throwing so revocation commits.
+                return null;
+            }
+
+            if (
+                currentToken.expiresAt <= now ||
+                session.user.status !== "ACTIVE" ||
+                !session.user.emailVerifiedAt
+            ) {
+                return null;
+            }
+
+            const consumed =
+                await this.authRepository.consumeRefreshToken(
+                    currentToken.id,
+                    now,
+                    tx,
+                );
+
+            if (consumed.count !== 1) {
+                return null;
+            }
+
+            const newRefreshToken = generateToken();
+
+            const refreshTokenExpiresAt = new Date(
+                Math.min(
+                    now.getTime() + AUTH_CONFIG.refreshTokenLifetimeMs,
+                    session.expiresAt.getTime(),
+                ),
+            );
+
+            await this.authRepository.createRefreshToken(
+                {
+                    sessionId: session.id,
+                    tokenHash: hashToken(newRefreshToken),
+                    expiresAt: refreshTokenExpiresAt,
+                },
+                tx,
+            );
+
+            const accessToken = createAccessToken({
+                userId: session.userId,
+                sessionId: session.id,
+            });
+
+            return {
+                accessToken,
+                refreshToken: newRefreshToken,
+                refreshTokenExpiresAt,
+            };
+        });
+
+        if (!result) {
+            throw new UnauthorizedError(
+                "Session expired or revoked. Please log in again.",
+            );
+        }
+
+        return {
+            ...result,
+            tokenType: "Bearer" as const,
+            expiresIn: AUTH_CONFIG.accessTokenLifetimeSeconds,
+        };
+    }
 }

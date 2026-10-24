@@ -106,3 +106,14 @@ export const loginEmailLimiter = createLimiter({
             .digest("hex");
     },
 });
+
+export const refreshLimiter = createLimiter({
+    prefix: "recycleconnect:rl:refresh:",
+
+    windowMs: 15 * 60 * 1000,
+
+    limit: 60,
+
+    message:
+        "Too many refresh requests. Please try again later.",
+});

@@ -168,4 +168,56 @@ export class AuthRepository {
             select: publicUserSelect,
         });
     }
+
+    findRefreshTokenByHash(tokenHash: string, tx?: Prisma.TransactionClient) {
+        const client = tx ?? prisma;
+
+        return client.refreshToken.findUnique({
+            where: {
+                tokenHash,
+            },
+
+            include: {
+                session: {
+                    include: {
+                        user: {
+                            select: {
+                                status: true,
+                                emailVerifiedAt: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    consumeRefreshToken(id: string, consumedAt: Date, tx: Prisma.TransactionClient) {
+        return tx.refreshToken.updateMany({
+            where: {
+                id,
+                consumedAt: null,
+                expiresAt: {
+                    gt: consumedAt,
+                },
+            },
+
+            data: {
+                consumedAt,
+            },
+        });
+    }
+
+    revokeSession(sessionId: string, revokedAt: Date, tx: Prisma.TransactionClient) {
+        return tx.session.updateMany({
+            where: {
+                id: sessionId,
+                revokedAt: null,
+            },
+
+            data: {
+                revokedAt,
+            },
+        });
+    }
 }

@@ -76,4 +76,59 @@ export class AuthController {
             },
         });
     };
+
+    refresh = async (req: Request, res: Response) => {
+        res.set("Cache-Control", "no-store");
+
+        const refreshToken: unknown =
+            req.cookies?.[REFRESH_COOKIE_NAME];
+
+        if (
+            typeof refreshToken !== "string" ||
+            !/^[A-Za-z0-9_-]{43}$/.test(refreshToken)
+        ) {
+            res.clearCookie(
+                REFRESH_COOKIE_NAME,
+                refreshCookieOptions,
+            );
+
+            throw new UnauthorizedError(
+                "A valid refresh-token cookie is required.",
+            );
+        }
+
+        try {
+            const result = await this.authService.refresh(
+                refreshToken,
+            );
+
+            res.cookie(
+                REFRESH_COOKIE_NAME,
+                result.refreshToken,
+                {
+                    ...refreshCookieOptions,
+                    expires: result.refreshTokenExpiresAt,
+                },
+            );
+
+            res.status(200).json({
+                success: true,
+
+                data: {
+                    accessToken: result.accessToken,
+                    tokenType: result.tokenType,
+                    expiresIn: result.expiresIn,
+                },
+            });
+        } catch (error: unknown) {
+            if (error instanceof UnauthorizedError) {
+                res.clearCookie(
+                    REFRESH_COOKIE_NAME,
+                    refreshCookieOptions,
+                );
+            }
+
+            throw error;
+        }
+    };
 }
