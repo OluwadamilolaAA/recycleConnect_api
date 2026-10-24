@@ -30,6 +30,17 @@ const envSchema = z.object({
       "VERIFY_EMAIL_URL must use HTTP or HTTPS",
     ),
 
+  JWT_SECRET: z
+    .string()
+    .regex(
+      /^[a-f0-9]{64}$/i,
+      "JWT_SECRET must contain 64 hexadecimal characters",
+    ),
+
+  JWT_ISSUER: z.string().min(1),
+
+  JWT_AUDIENCE: z.string().min(1),
+
   CLIENT_ORIGIN: z
     .string()
     .url()

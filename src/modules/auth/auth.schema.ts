@@ -29,6 +29,18 @@ export const registerSchema = z.strictObject({
   role: z.enum(["HOUSEHOLD", "COLLECTOR", "RECYCLER"]).default("HOUSEHOLD"),
 });
 
+export const loginSchema = z.strictObject({
+  email: emailSchema,
+
+  password: z
+    .string()
+    .min(8, "Password is required")
+    .refine(
+      (value) => Buffer.byteLength(value, "utf8") <= 72,
+      "Password cannot exceed 72 UTF-8 bytes",
+    ),
+});
+
 export const verifyEmailSchema = z.strictObject({
   token: z
     .string()

@@ -3,34 +3,46 @@ import { prisma } from "../../lib/prisma.js";
 import type { RegisterInput } from "./auth.types.js";
 
 const publicUserSelect = {
-  id: true,
-  name: true,
-  email: true,
-  role: true,
-  status: true,
-  emailVerifiedAt: true,
-  createdAt: true,
+    id: true,
+    name: true,
+    email: true,
+    role: true,
+    status: true,
+    emailVerifiedAt: true,
+    createdAt: true,
 } satisfies Prisma.UserSelect;
 
 type CreateUserData = Omit<RegisterInput, "password"> & {
-  passwordHash: string;
+    passwordHash: string;
 };
 
 type CreateEmailVerificationTokenData = {
-  userId: string;
-  tokenHash: string;
-  expiresAt: Date;
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
 };
 
-export class AuthRepository{
-    findByEmail(email: string){
+type CreateSessionData = {
+    userId: string;
+    userAgent: string | null;
+    expiresAt: Date;
+};
+
+type CreateRefreshTokenData = {
+    sessionId: string;
+    tokenHash: string;
+    expiresAt: Date;
+};
+
+export class AuthRepository {
+    findByEmail(email: string) {
         return prisma.user.findUnique({
             where: { email },
-            select: { id: true}
+            select: { id: true }
         })
     }
 
-    createUser(data: CreateUserData, tx: Prisma.TransactionClient){
+    createUser(data: CreateUserData, tx: Prisma.TransactionClient) {
         return tx.user.create({
             data: {
                 name: data.name,
@@ -42,18 +54,18 @@ export class AuthRepository{
         });
     }
 
-    createEmailVerificationToken(data: CreateEmailVerificationTokenData, tx: Prisma.TransactionClient){
+    createEmailVerificationToken(data: CreateEmailVerificationTokenData, tx: Prisma.TransactionClient) {
         return tx.emailVerificationToken.create({
             data: {
                 userId: data.userId,
                 tokenHash: data.tokenHash,
                 expiresAt: data.expiresAt
             },
-            select: { id: true}
+            select: { id: true }
         })
     }
 
-    findEmailVerificationByTokenHash(tokenHash: string, tx: Prisma.TransactionClient){
+    findEmailVerificationByTokenHash(tokenHash: string, tx: Prisma.TransactionClient) {
         return tx.emailVerificationToken.findUnique({
             where: { tokenHash },
             select: {
@@ -63,7 +75,7 @@ export class AuthRepository{
         })
     }
 
-    consumeEmailVerificationToken(id: string, consumedAt: Date, tx: Prisma.TransactionClient){
+    consumeEmailVerificationToken(id: string, consumedAt: Date, tx: Prisma.TransactionClient) {
         return tx.emailVerificationToken.updateMany({
             where: {
                 id,
@@ -78,7 +90,7 @@ export class AuthRepository{
         })
     }
 
-    markEmailVerified(userId: string, verifiedAt: Date, tx: Prisma.TransactionClient){
+    markEmailVerified(userId: string, verifiedAt: Date, tx: Prisma.TransactionClient) {
         return tx.user.updateMany({
             where: {
                 id: userId,
@@ -86,6 +98,64 @@ export class AuthRepository{
             },
             data: {
                 emailVerifiedAt: verifiedAt
+            }
+        })
+    }
+
+    findUserForLogin(email: string) {
+        return prisma.user.findUnique({
+            where: { email },
+            select: {
+                id: true,
+                passwordHash: true
+            }
+        })
+    }
+
+    async lockUserForLogin(userId: string, tx: Prisma.TransactionClient) {
+        await tx.$queryRaw`
+    SELECT "id"
+    FROM public."User"
+    WHERE "id" = ${userId}::uuid
+    FOR UPDATE
+  `;
+    }
+
+    findLoginAccountById(userId: string, tx: Prisma.TransactionClient){
+        return tx.user.findUnique({
+            where: {
+                id: userId
+            },
+            select: {
+                ...publicUserSelect,
+                passwordHash: true
+            }
+        })
+    }
+
+    createSession(data: CreateSessionData, tx: Prisma.TransactionClient){
+        return tx.session.create({
+            data: {
+                userId: data.userId,
+                userAgent: data.userId,
+                expiresAt: data.expiresAt
+            },
+            select: {
+                id: true,
+                expiresAt: true
+            }
+        })
+    }
+
+    createRefreshToken(data: CreateRefreshTokenData, tx: Prisma.TransactionClient){
+        return tx.refreshToken.create({
+            data: {
+                sessionId: data.sessionId,
+                tokenHash: data.tokenHash,
+                expiresAt: data.expiresAt
+            },
+            select: {
+                id: true
             }
         })
     }
