@@ -121,7 +121,7 @@ export class AuthRepository {
   `;
     }
 
-    findLoginAccountById(userId: string, tx: Prisma.TransactionClient){
+    findLoginAccountById(userId: string, tx: Prisma.TransactionClient) {
         return tx.user.findUnique({
             where: {
                 id: userId
@@ -133,7 +133,7 @@ export class AuthRepository {
         })
     }
 
-    createSession(data: CreateSessionData, tx: Prisma.TransactionClient){
+    createSession(data: CreateSessionData, tx: Prisma.TransactionClient) {
         return tx.session.create({
             data: {
                 userId: data.userId,
@@ -147,7 +147,7 @@ export class AuthRepository {
         })
     }
 
-    createRefreshToken(data: CreateRefreshTokenData, tx: Prisma.TransactionClient){
+    createRefreshToken(data: CreateRefreshTokenData, tx: Prisma.TransactionClient) {
         return tx.refreshToken.create({
             data: {
                 sessionId: data.sessionId,
@@ -158,5 +158,14 @@ export class AuthRepository {
                 id: true
             }
         })
+    }
+
+    findPublicUserById(userId: string) {
+        return prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            select: publicUserSelect,
+        });
     }
 }

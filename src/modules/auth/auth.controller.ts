@@ -1,14 +1,15 @@
 import type { Request, Response } from "express";
-import { registerSchema, verifyEmailSchema } from "./auth.schema.js";
+import { loginSchema, registerSchema, verifyEmailSchema } from "./auth.schema.js";
 import { AuthService } from "./auth.service.js";
-import { success } from "zod";
+import { REFRESH_COOKIE_NAME, refreshCookieOptions } from "../../config/cookies.js";
+import UnauthorizedError from "../../common/errors/unauthorized.error.js";
 
-export class AuthController{
+export class AuthController {
     constructor(
         private readonly authService = new AuthService()
-    ){}
+    ) { }
 
-    register = async(req: Request, res: Response) => {
+    register = async (req: Request, res: Response) => {
         const data = registerSchema.parse(req.body)
 
         const result = await this.authService.register(data)
@@ -19,7 +20,7 @@ export class AuthController{
         })
     }
 
-    verifyEmail= async(req: Request, res: Response) => {
+    verifyEmail = async (req: Request, res: Response) => {
         const data = verifyEmailSchema.parse(req.body)
 
         const result = await this.authService.verifyEmail(data.token)
@@ -29,4 +30,50 @@ export class AuthController{
             ...result
         })
     }
+
+    login = async (req: Request, res: Response) => {
+        const data = loginSchema.parse(req.body)
+        const userAgent = req.get("user-agent") ?? null;
+
+        const result = await this.authService.login(data, userAgent)
+
+        res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, {
+            ...refreshCookieOptions,
+            expires: result.refreshTokenExpiresAt
+        });
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            message: "Login successfully",
+            data: {
+                user: result.user,
+                accessToken: result.accessToken,
+                tokenType: result.tokenType,
+                expiresIn: result.expiresIn
+            }
+        })
+    }
+
+    me = async (req: Request, res: Response) => {
+        if (!req.auth) {
+            throw new UnauthorizedError(
+                "Authentication is required.",
+            );
+        }
+
+        const user = await this.authService.getCurrentUser(
+            req.auth.userId,
+        );
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            data: {
+                user,
+            },
+        });
+    };
 }

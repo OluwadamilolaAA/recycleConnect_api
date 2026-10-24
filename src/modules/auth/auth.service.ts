@@ -212,4 +212,17 @@ export class AuthService {
             expiresIn: AUTH_CONFIG.accessTokenLifetimeSeconds
         }
     }
+
+    //Get current user
+    async getCurrentUser(userId: string) {
+        const user = await this.authRepository.findPublicUserById(userId);
+
+        if (!user || user.status !== "ACTIVE") {
+            throw new UnauthorizedError(
+                "Account is unavailable.",
+            );
+        }
+
+        return user;
+    }
 }

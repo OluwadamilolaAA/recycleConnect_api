@@ -1,8 +1,8 @@
+import { createHash } from "node:crypto";
+import type { Request } from "express";
 import { rateLimit } from "express-rate-limit";
-
 import { RedisStore } from "rate-limit-redis";
 import type { RedisReply } from "rate-limit-redis";
-
 import { redis } from "../lib/redis.js";
 
 type LimiterOptions = {
@@ -10,6 +10,7 @@ type LimiterOptions = {
     windowMs: number;
     limit: number;
     message: string;
+    keyGenerator?: (req: Request) => string;
 };
 
 function createLimiter(options: LimiterOptions) {
@@ -23,6 +24,12 @@ function createLimiter(options: LimiterOptions) {
         legacyHeaders: false,
 
         passOnStoreError: false,
+
+        ...(options.keyGenerator
+            ? {
+                keyGenerator: options.keyGenerator,
+            }
+            : {}),
 
         store: new RedisStore({
             prefix: options.prefix,
@@ -65,4 +72,37 @@ export const verifyEmailLimiter = createLimiter({
 
     message:
         "Too many verification attempts. Please try again later.",
+});
+
+export const loginIpLimiter = createLimiter({
+    prefix: "recycleconnect:rl:login-ip:",
+
+    windowMs: 15 * 60 * 1000,
+
+    limit: 30,
+
+    message:
+        "Too many login attempts. Please try again later.",
+});
+
+export const loginEmailLimiter = createLimiter({
+    prefix: "recycleconnect:rl:login-email:",
+
+    windowMs: 15 * 60 * 1000,
+
+    limit: 10,
+
+    message:
+        "Too many login attempts. Please try again later.",
+
+    keyGenerator: (req) => {
+        const email =
+            typeof req.body?.email === "string"
+                ? req.body.email.trim().toLowerCase()
+                : "invalid-input";
+
+        return createHash("sha256")
+            .update(email)
+            .digest("hex");
+    },
 });
