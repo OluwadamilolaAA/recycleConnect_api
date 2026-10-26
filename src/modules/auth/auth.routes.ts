@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { requireTrustedOrigin } from "../../middlewares/origin.middleware.js";
 import { AuthController } from "./auth.controller.js";
-import { loginEmailLimiter, loginIpLimiter, logoutLimiter, passwordResetEmailLimiter, passwordResetIpLimiter, refreshLimiter, registerLimiter, sessionManagementLimiter, verifyEmailLimiter } from "../../middlewares/ratelimit.middleware.js";
+import { loginEmailLimiter, loginIpLimiter, logoutLimiter, passwordResetEmailLimiter, passwordResetIpLimiter, refreshLimiter, registerLimiter, sessionManagementLimiter, verifyEmailLimiter, verifyPasswordResetOtpEmailLimiter, verifyPasswordResetOtpIpLimiter } from "../../middlewares/ratelimit.middleware.js";
 import { authenticate, requireActiveSession } from "../../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -21,6 +21,13 @@ router.post(
     passwordResetIpLimiter,
     passwordResetEmailLimiter,
     controller.requestPasswordReset,
+);
+
+router.post(
+  "/verify-password-reset-otp",
+  verifyPasswordResetOtpIpLimiter,
+  verifyPasswordResetOtpEmailLimiter,
+  controller.verifyPasswordResetOtp,
 );
 
 export default router;

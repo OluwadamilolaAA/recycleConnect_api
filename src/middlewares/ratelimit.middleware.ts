@@ -164,3 +164,32 @@ export const passwordResetEmailLimiter = createLimiter({
             .digest("hex");
     },
 });
+
+export const verifyPasswordResetOtpIpLimiter =
+    createLimiter({
+        prefix: "verify-reset-otp-ip:",
+        windowMs: 15 * 60 * 1000,
+        limit: 30,
+        message:
+            "Too many verification attempts. Please try again later.",
+    });
+
+export const verifyPasswordResetOtpEmailLimiter =
+    createLimiter({
+        prefix: "verify-reset-otp-email:",
+        windowMs: 60 * 60 * 1000,
+        limit: 10,
+        message:
+            "Too many verification attempts. Please try again later.",
+
+        keyGenerator: (req) => {
+            const email =
+                typeof req.body?.email === "string"
+                    ? req.body.email.trim().toLowerCase()
+                    : "invalid-input";
+
+            return createHash("sha256")
+                .update(email)
+                .digest("hex");
+        },
+    });

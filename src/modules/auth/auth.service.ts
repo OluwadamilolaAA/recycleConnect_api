@@ -11,7 +11,7 @@ import UnauthorizedError from "../../common/errors/unauthorized.error.js";
 import ForbiddenError from "../../common/errors/forbidden.error.js";
 import { createAccessToken } from "../../lib/access-token.js";
 import NotFoundError from "../../common/errors/not-found.error.js";
-import { generatePasswordResetOtp, hashPasswordResetOtp } from "../../common/utils/password-reset.util.js";
+import { generatePasswordResetOtp, hashPasswordResetOtp, verifyPasswordResetOtp } from "../../common/utils/password-reset.util.js";
 import { randomUUID } from "node:crypto";
 
 const REGISTRATION_MESSAGE =
@@ -441,13 +441,13 @@ export class AuthService {
 
             // Read the account again after acquiring the lock.
             const account = await this.authRepository.findPasswordResetAccountById(
-                    user.id,
-                    tx,
-                );
+                user.id,
+                tx,
+            );
 
             if (
                 !account ||
-                account.status !== "ACTIVE" 
+                account.status !== "ACTIVE"
             ) {
                 return;
             }
@@ -455,9 +455,9 @@ export class AuthService {
             const now = new Date();
 
             const latestChallenge = await this.authRepository.findLatestPasswordResetChallenge(
-                    account.id,
-                    tx,
-                );
+                account.id,
+                tx,
+            );
 
             if (latestChallenge) {
                 const nextAllowedTime =
@@ -508,5 +508,110 @@ export class AuthService {
         });
 
         return { message };
+    }
+
+    //verify reset otp
+    async verifyPasswordResetOtp(email: string, otp: string) {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const user = await this.authRepository.findByEmail(normalizedEmail);
+
+        if (!user) {
+            throw new BadRequestError(
+                "Invalid or expired password reset code.",
+            );
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            await this.authRepository.lockUserForLogin(
+                user.id,
+                tx,
+            );
+
+            const account = await this.authRepository.findPasswordResetAccountById(
+                    user.id,
+                    tx,
+                );
+
+            if (
+                !account ||
+                account.status !== "ACTIVE" ||
+                account.email !== normalizedEmail
+            ) {
+                return null;
+            }
+
+            const challenge = await this.authRepository.findLatestPasswordResetChallenge(
+                    account.id,
+                    tx,
+                );
+
+            const now = new Date();
+
+            if (
+                !challenge ||
+                challenge.consumedAt ||
+                challenge.verifiedAt ||
+                challenge.expiresAt <= now ||
+                challenge.attempts >=
+                AUTH_CONFIG.passwordResetMaxAttempts
+            ) {
+                return null;
+            }
+
+            const otpIsValid = verifyPasswordResetOtp(
+                challenge.id,
+                otp,
+                challenge.otpHash,
+            );
+
+            if (!otpIsValid) {
+                await this.authRepository.incrementPasswordResetAttempts(
+                    challenge.id,
+                    now,
+                    AUTH_CONFIG.passwordResetMaxAttempts,
+                    tx,
+                );
+
+                return null;
+            }
+
+            const resetToken = generateToken();
+            const resetTokenHash = hashToken(resetToken);
+
+            const resetExpiresAt = new Date(
+                now.getTime() + AUTH_CONFIG.passwordResetTokenLifetimeMs,
+            );
+
+            const updated =
+                await this.authRepository.markPasswordResetOtpVerified(
+                    {
+                        challengeId: challenge.id,
+                        verifiedAt: now,
+                        resetTokenHash,
+                        resetExpiresAt,
+                        maxAttempts:
+                            AUTH_CONFIG.passwordResetMaxAttempts,
+                    },
+                    tx,
+                );
+
+            if (updated.count !== 1) {
+                return null;
+            }
+
+            return {
+                resetToken,
+                resetExpiresAt,
+            };
+        });
+
+        if (!result) {
+            throw new BadRequestError(
+                "Invalid or expired password reset code.",
+            );
+        }
+
+        return result;
     }
 }

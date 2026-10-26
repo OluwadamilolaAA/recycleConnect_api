@@ -45,6 +45,15 @@ export const requestPasswordResetSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
 });
 
+export const verifyPasswordResetOtpSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+
+  otp: z.string().regex(
+    /^\d{6}$/,
+    "OTP must contain exactly 6 digits",
+  ),
+});
+
 export const verifyEmailSchema = z.strictObject({
   token: z
     .string()

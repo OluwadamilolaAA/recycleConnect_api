@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { loginSchema, registerSchema, requestPasswordResetSchema, sessionParamsSchema, verifyEmailSchema } from "./auth.schema.js";
+import { loginSchema, registerSchema, requestPasswordResetSchema, sessionParamsSchema, verifyEmailSchema, verifyPasswordResetOtpSchema } from "./auth.schema.js";
 import { AuthService } from "./auth.service.js";
 import { REFRESH_COOKIE_NAME, refreshCookieOptions } from "../../config/cookies.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
@@ -197,21 +197,36 @@ export class AuthController {
         });
     };
 
-    requestPasswordReset = async (
-        req: Request,
-        res: Response,
-    ) => {
+    requestPasswordReset = async (req: Request, res: Response) => {
         const data = requestPasswordResetSchema.parse(req.body);
 
-        const result = await this.authService.requestPasswordReset(
-            data.email,
-        );
+        const result = await this.authService.requestPasswordReset(data.email);
 
         res.set("Cache-Control", "no-store");
 
         res.status(200).json({
             success: true,
             message: result.message,
+        });
+    };
+
+    verifyPasswordResetOtp = async (req: Request, res: Response) => {
+        const data = verifyPasswordResetOtpSchema.parse(req.body);
+
+        const result = await this.authService.verifyPasswordResetOtp(
+                data.email,
+                data.otp,
+            );
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            message: "Code verified. You can now reset your password.",
+            data: {
+                resetToken: result.resetToken,
+                expiresAt: result.resetExpiresAt,
+            },
         });
     };
 }
