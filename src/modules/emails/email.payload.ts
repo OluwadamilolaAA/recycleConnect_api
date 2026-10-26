@@ -1,9 +1,5 @@
-import { createCipheriv, createDecipheriv,
-  randomBytes,
-} from "node:crypto";
-
+import { createCipheriv, createDecipheriv, randomBytes} from "node:crypto";
 import { z } from "zod";
-
 import { env } from "../../config/env.js";
 
 export const emailPayloadSchema = z.object({

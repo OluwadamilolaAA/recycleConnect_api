@@ -117,3 +117,14 @@ export const refreshLimiter = createLimiter({
     message:
         "Too many refresh requests. Please try again later.",
 });
+
+export const logoutLimiter = createLimiter({
+    prefix: "recycleconnect:rl:logout:",
+
+    windowMs: 15 * 60 * 1000,
+
+    limit: 60,
+
+    message:
+        "Too many logout requests. Please try again later.",
+});

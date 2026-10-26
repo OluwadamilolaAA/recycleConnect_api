@@ -3,6 +3,7 @@ import { loginSchema, registerSchema, verifyEmailSchema } from "./auth.schema.js
 import { AuthService } from "./auth.service.js";
 import { REFRESH_COOKIE_NAME, refreshCookieOptions } from "../../config/cookies.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
+import { success } from "zod";
 
 export class AuthController {
     constructor(
@@ -131,4 +132,22 @@ export class AuthController {
             throw error;
         }
     };
+
+    logout = async (req: Request, res: Response) => {
+        res.set("Cache-Control", "no-store");
+
+        const cookieValue: unknown = req.cookies?.[REFRESH_COOKIE_NAME];
+
+        const refreshToken = typeof cookieValue === "string" &&
+            /^[A-Za-z0-9_-]{43}$/.test(cookieValue) ? cookieValue : undefined
+
+        const result = await this.authService.logout(refreshToken);
+
+        res.clearCookie(REFRESH_COOKIE_NAME, refreshCookieOptions);
+
+        res.status(200).json({
+            success: true,
+            ...result
+        })
+    }
 }

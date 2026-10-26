@@ -12,7 +12,7 @@ import ForbiddenError from "../../common/errors/forbidden.error.js";
 import { createAccessToken } from "../../lib/access-token.js";
 
 const REGISTRATION_MESSAGE =
-    "If this email is valid, a verification email will be sent.";
+    "If registration can proceed, you’ll receive a verification email. If you already have an account, please sign in.";
 
 const dummyPasswordHash = await hashPassword(generateToken());
 
@@ -229,10 +229,10 @@ export class AuthService {
     //Refresh token
     async refresh(refreshToken: string) {
         const tokenHash = hashToken(refreshToken);
-        
+
         const existingToken = await this.authRepository.findRefreshTokenByHash(
-                tokenHash,
-            );
+            tokenHash,
+        );
 
         if (!existingToken) {
             throw new UnauthorizedError(
@@ -248,9 +248,9 @@ export class AuthService {
 
             // Read again after acquiring the lock.
             const currentToken = await this.authRepository.findRefreshTokenByHash(
-                    tokenHash,
-                    tx,
-                );
+                tokenHash,
+                tx,
+            );
 
             if (!currentToken) {
                 return null;
@@ -339,5 +339,31 @@ export class AuthService {
             tokenType: "Bearer" as const,
             expiresIn: AUTH_CONFIG.accessTokenLifetimeSeconds,
         };
+    }
+
+    //logout
+
+    async logout(refreshToken?: string) {
+        if (refreshToken) {
+            const tokenHash = hashToken(refreshToken);
+
+            const existingToken = await this.authRepository.findRefreshTokenByHash(tokenHash)
+
+            if (existingToken) {
+                await prisma.$transaction(async (tx) => {
+                    await this.authRepository.lockUserForLogin(
+                        existingToken.session.userId,
+                        tx
+                    )
+
+                    await this.authRepository.revokeSession(existingToken.sessionId, new Date(), tx)
+                })
+            }
+        }
+
+        return {
+            message: "Logout successfully"
+        }
+
     }
 }

@@ -40,6 +40,7 @@ const resend = new Resend(env.RESEND_API_KEY);
 const worker = new Worker<EmailJobData>(
   "emails",
 
+  //Retrieve the email from PostgreSQL
   async (job) => {
     const email = await prisma.emailOutbox.findUnique({
       where: {
@@ -68,6 +69,7 @@ const worker = new Worker<EmailJobData>(
 
     const payload = decryptEmailPayload(email.encryptedPayload);
 
+    //Submit the email to Resend
     const { data, error } = await resend.emails.send(payload, {
       idempotencyKey: `email/${email.id}`,
     });
@@ -99,6 +101,8 @@ const worker = new Worker<EmailJobData>(
     if (!data) {
       throw new Error("Email provider returned no confirmation.");
     }
+
+    //Record acceptance and clear sensitive contents
 
     await prisma.emailOutbox.update({
       where: {
@@ -141,6 +145,7 @@ worker.on("error", (error) => {
 let isDispatching = false;
 let isStopping = false;
 
+//Define the dispatcher
 async function dispatchPendingEmails() {
   if (isDispatching || isStopping) {
     return;
