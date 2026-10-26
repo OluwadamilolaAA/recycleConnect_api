@@ -10,6 +10,7 @@ import BadRequestError from "../../common/errors/bad-request.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
 import ForbiddenError from "../../common/errors/forbidden.error.js";
 import { createAccessToken } from "../../lib/access-token.js";
+import NotFoundError from "../../common/errors/not-found.error.js";
 
 const REGISTRATION_MESSAGE =
     "If registration can proceed, you’ll receive a verification email. If you already have an account, please sign in.";
@@ -356,14 +357,62 @@ export class AuthService {
                         tx
                     )
 
-                    await this.authRepository.revokeSession(existingToken.sessionId, new Date(), tx)
+                    await this.authRepository.revokeSession(
+                        existingToken.sessionId,
+                        new Date(),
+                        tx)
                 })
             }
         }
 
         return {
-            message: "Logout successfully"
+            message: "Logged out successfully"
         }
 
+    }
+
+    //List Sessions
+    async listSessions(userId: string, currentSessionId: string) {
+        const sessions = await this.authRepository.listActiveSessions(userId);
+
+        return {
+            sesssion: sessions.map((session) => ({
+                isCurrent: session.id === currentSessionId
+            })),
+            limit: 50
+        }
+    }
+
+    //revoke device session
+    async revokeDeviceSession(
+        userId: string,
+        currentSessionId: string,
+        targetSessionId: string
+    ) {
+        await prisma.$transaction(async (tx) => {
+            await this.authRepository.lockUserForLogin(userId, tx);
+
+            const currentSession = await this.authRepository.findActiveSession(
+                userId, currentSessionId, tx
+            )
+
+            if (!currentSession) {
+                throw new UnauthorizedError(
+                    "Session expired or revoked. Please log in again.",
+                );
+            }
+
+            const result = await this.authRepository.revokeOwnedSession(
+                userId, targetSessionId, new Date(), tx
+            )
+
+            if (result.count !== 1) {
+                throw new NotFoundError("Active session not found.");
+            }
+        })
+
+        return {
+            message: "Session revoked successfully.",
+        };
     }
 }

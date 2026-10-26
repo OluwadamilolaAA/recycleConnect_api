@@ -2,8 +2,8 @@ import { Router } from "express";
 
 import { requireTrustedOrigin } from "../../middlewares/origin.middleware.js";
 import { AuthController } from "./auth.controller.js";
-import { loginEmailLimiter, loginIpLimiter, logoutLimiter, refreshLimiter, registerLimiter, verifyEmailLimiter } from "../../middlewares/ratelimit.middleware.js";
-import { authenticate } from "../../middlewares/auth.middleware.js";
+import { loginEmailLimiter, loginIpLimiter, logoutLimiter, refreshLimiter, registerLimiter, sessionManagementLimiter, verifyEmailLimiter } from "../../middlewares/ratelimit.middleware.js";
+import { authenticate, requireActiveSession } from "../../middlewares/auth.middleware.js";
 
 const router = Router();
 const controller = new AuthController();
@@ -14,5 +14,7 @@ router.post("/login", requireTrustedOrigin, loginIpLimiter, loginEmailLimiter, c
 router.get("/me", authenticate, controller.me);
 router.post("/refresh", requireTrustedOrigin, refreshLimiter, controller.refresh);
 router.post("/logout", requireTrustedOrigin, logoutLimiter, controller.logout);
+router.get("/sessions", sessionManagementLimiter, authenticate, requireActiveSession,controller.listSessions);
+router.delete("/sessions/:sessionId", requireTrustedOrigin, sessionManagementLimiter, authenticate, requireActiveSession, controller.revokeSession);
 
 export default router;

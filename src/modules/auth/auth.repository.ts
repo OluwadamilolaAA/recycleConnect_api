@@ -220,4 +220,86 @@ export class AuthRepository {
             },
         });
     }
+
+    findActiveSession(userId: string, sessionId: string, tx?: Prisma.TransactionClient) {
+        const db = tx ?? prisma
+
+        return db.session.findFirst({
+            where: {
+                id: sessionId,
+                userId,
+
+                revokedAt: null,
+
+                expiresAt: {
+                    gt: new Date(),
+                },
+
+                user: {
+                    status: "ACTIVE",
+
+                    emailVerifiedAt: {
+                        not: null
+                    }
+                }
+            },
+            select: {
+                id: true
+            }
+
+        })
+    }
+
+    listActiveSessions(userId: string) {
+        return prisma.session.findMany({
+            where: {
+                userId,
+
+                revokedAt: null,
+
+                expiresAt: {
+                    gt: new Date()
+                }
+            },
+            select: {
+                id: true,
+                userAgent: true,
+                createdAt: true,
+                expiresAt: true
+            },
+            orderBy: [
+                {
+                    createdAt: "desc"
+                },
+                {
+                    id: "desc"
+                }
+            ],
+            take: 50
+        })
+    }
+
+    revokeOwnedSession(
+        userId: string,
+        sessionId: string,
+        revokedAt: Date,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.session.updateMany({
+            where: {
+                id: sessionId,
+                userId,
+
+                revokedAt: null,
+
+                expiresAt: {
+                    gt: revokedAt,
+                },
+            },
+
+            data: {
+                revokedAt,
+            },
+        });
+    }
 }

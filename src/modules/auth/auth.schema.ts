@@ -49,3 +49,7 @@ export const verifyEmailSchema = z.strictObject({
       "Invalid verification token",
     ),
 });
+
+export const sessionParamsSchema = z.strictObject({
+  sessionId: z.string().uuid("Invalid session ID"),
+});

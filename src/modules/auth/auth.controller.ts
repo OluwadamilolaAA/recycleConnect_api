@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { loginSchema, registerSchema, verifyEmailSchema } from "./auth.schema.js";
+import { loginSchema, registerSchema, sessionParamsSchema, verifyEmailSchema } from "./auth.schema.js";
 import { AuthService } from "./auth.service.js";
 import { REFRESH_COOKIE_NAME, refreshCookieOptions } from "../../config/cookies.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
@@ -150,4 +150,50 @@ export class AuthController {
             ...result
         })
     }
+
+    listSessions = async (req: Request, res: Response) => {
+        if (!req.auth) {
+            throw new UnauthorizedError("Authentication is required.");
+        }
+
+        const result = await this.authService.listSessions(
+            req.auth.userId,
+            req.auth.sessionId,
+        );
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            data: result,
+        });
+    };
+
+    revokeSession = async (req: Request, res: Response) => {
+        if (!req.auth) {
+            throw new UnauthorizedError("Authentication is required.");
+        }
+
+        const { sessionId } = sessionParamsSchema.parse(req.params);
+
+        const result = await this.authService.revokeDeviceSession(
+                req.auth.userId,
+                req.auth.sessionId,
+                sessionId,
+            );
+
+        if (sessionId === req.auth.sessionId) {
+            res.clearCookie(
+                REFRESH_COOKIE_NAME,
+                refreshCookieOptions,
+            );
+        }
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            ...result,
+        });
+    };
 }

@@ -128,3 +128,14 @@ export const logoutLimiter = createLimiter({
     message:
         "Too many logout requests. Please try again later.",
 });
+
+export const sessionManagementLimiter = createLimiter({
+    prefix: "recycleconnect:rl:sessions:",
+
+    windowMs: 15 * 60 * 1000,
+
+    limit: 60,
+
+    message:
+        "Too many session-management requests. Please try again later.",
+});
