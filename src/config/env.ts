@@ -30,6 +30,13 @@ const envSchema = z.object({
       "VERIFY_EMAIL_URL must use HTTP or HTTPS",
     ),
 
+  PASSWORD_RESET_SECRET: z
+    .string()
+    .regex(
+      /^[a-fA-F0-9]{64}$/,
+      "PASSWORD_RESET_SECRET must contain exactly 64 hexadecimal characters",
+    ),
+
   JWT_SECRET: z
     .string()
     .regex(

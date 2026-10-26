@@ -139,3 +139,28 @@ export const sessionManagementLimiter = createLimiter({
     message:
         "Too many session-management requests. Please try again later.",
 });
+
+export const passwordResetIpLimiter = createLimiter({
+    prefix: "password-reset-ip:",
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    message: "Too many password reset requests. Please try again later.",
+});
+
+export const passwordResetEmailLimiter = createLimiter({
+    prefix: "password-reset-email:",
+    windowMs: 60 * 60 * 1000,
+    limit: 5,
+    message: "Too many password reset requests. Please try again later.",
+
+    keyGenerator: (req) => {
+        const email =
+            typeof req.body?.email === "string"
+                ? req.body.email.trim().toLowerCase()
+                : "invalid-input";
+
+        return createHash("sha256")
+            .update(email)
+            .digest("hex");
+    },
+});

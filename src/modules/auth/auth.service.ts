@@ -11,6 +11,8 @@ import UnauthorizedError from "../../common/errors/unauthorized.error.js";
 import ForbiddenError from "../../common/errors/forbidden.error.js";
 import { createAccessToken } from "../../lib/access-token.js";
 import NotFoundError from "../../common/errors/not-found.error.js";
+import { generatePasswordResetOtp, hashPasswordResetOtp } from "../../common/utils/password-reset.util.js";
+import { randomUUID } from "node:crypto";
 
 const REGISTRATION_MESSAGE =
     "If registration can proceed, you’ll receive a verification email. If you already have an account, please sign in.";
@@ -414,5 +416,97 @@ export class AuthService {
         return {
             message: "Session revoked successfully.",
         };
+    }
+
+    // reset-password
+    async requestPasswordReset(email: string) {
+        const message =
+            "If an eligible account exists for this email, " +
+            "a password reset code will be sent.";
+
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const user = await this.authRepository.findByEmail(normalizedEmail);
+
+        if (!user) {
+            return { message };
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Coordinate this request with other account operations.
+            await this.authRepository.lockUserForLogin(
+                user.id,
+                tx,
+            );
+
+            // Read the account again after acquiring the lock.
+            const account = await this.authRepository.findPasswordResetAccountById(
+                    user.id,
+                    tx,
+                );
+
+            if (
+                !account ||
+                account.status !== "ACTIVE" 
+            ) {
+                return;
+            }
+
+            const now = new Date();
+
+            const latestChallenge = await this.authRepository.findLatestPasswordResetChallenge(
+                    account.id,
+                    tx,
+                );
+
+            if (latestChallenge) {
+                const nextAllowedTime =
+                    latestChallenge.createdAt.getTime() +
+                    AUTH_CONFIG.passwordResetResendCooldownMs;
+
+                if (now.getTime() < nextAllowedTime) {
+                    return;
+                }
+            }
+
+            const challengeId = randomUUID();
+            const otp = generatePasswordResetOtp();
+
+            const otpHash = hashPasswordResetOtp(
+                challengeId,
+                otp,
+            );
+
+            const expiresAt = new Date(
+                now.getTime() + AUTH_CONFIG.passwordResetOtpLifetimeMs,
+            );
+
+            await this.authRepository.invalidatePasswordResetChallenges(
+                account.id,
+                now,
+                tx,
+            );
+
+            await this.authRepository.createPasswordResetChallenge(
+                {
+                    id: challengeId,
+                    userId: account.id,
+                    otpHash,
+                    expiresAt,
+                },
+                tx,
+            );
+
+            await this.emailService.queuePasswordResetOtp(
+                {
+                    to: account.email,
+                    otp,
+                    expiresAt,
+                },
+                tx,
+            );
+        });
+
+        return { message };
     }
 }

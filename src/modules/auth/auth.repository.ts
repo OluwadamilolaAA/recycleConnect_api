@@ -302,4 +302,171 @@ export class AuthRepository {
             },
         });
     }
+
+    findPasswordResetAccountById(
+        userId: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.user.findUnique({
+            where: {
+                id: userId,
+            },
+            select: {
+                id: true,
+                email: true,
+                status: true,
+            },
+        });
+    }
+
+    findLatestPasswordResetChallenge(userId: string, tx: Prisma.TransactionClient) {
+        return tx.passwordResetChallenge.findFirst({
+            where: {
+                userId,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+    }
+
+    invalidatePasswordResetChallenges(
+        userId: string,
+        consumedAt: Date,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.passwordResetChallenge.updateMany({
+            where: {
+                userId,
+                consumedAt: null,
+            },
+            data: {
+                consumedAt,
+            },
+        });
+    }
+
+    createPasswordResetChallenge(
+        data: {
+            id: string;
+            userId: string;
+            otpHash: string;
+            expiresAt: Date;
+        },
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.passwordResetChallenge.create({
+            data: {
+                id: data.id,
+                userId: data.userId,
+                otpHash: data.otpHash,
+                expiresAt: data.expiresAt,
+            },
+        });
+    }
+
+    findPasswordResetChallenge(
+        challengeId: string,
+        userId: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.passwordResetChallenge.findFirst({
+            where: {
+                id: challengeId,
+                userId,
+            },
+        });
+    }
+
+    incrementPasswordResetAttempts(
+        challengeId: string,
+        now: Date,
+        maxAttempts: number,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.passwordResetChallenge.updateMany({
+            where: {
+                id: challengeId,
+                consumedAt: null,
+                verifiedAt: null,
+                expiresAt: {
+                    gt: now,
+                },
+                attempts: {
+                    lt: maxAttempts,
+                },
+            },
+            data: {
+                attempts: {
+                    increment: 1,
+                },
+            },
+        });
+    }
+
+    markPasswordResetOtpVerified(
+        data: {
+            challengeId: string;
+            verifiedAt: Date;
+            resetTokenHash: string;
+            resetExpiresAt: Date;
+            maxAttempts: number;
+        },
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.passwordResetChallenge.updateMany({
+            where: {
+                id: data.challengeId,
+                consumedAt: null,
+                verifiedAt: null,
+                expiresAt: {
+                    gt: data.verifiedAt,
+                },
+                attempts: {
+                    lt: data.maxAttempts,
+                },
+            },
+            data: {
+                verifiedAt: data.verifiedAt,
+                resetTokenHash: data.resetTokenHash,
+                resetExpiresAt: data.resetExpiresAt,
+            },
+        });
+    }
+
+    findPasswordResetChallengeByResetTokenHash(
+        resetTokenHash: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.passwordResetChallenge.findUnique({
+            where: {
+                resetTokenHash,
+            },
+        });
+    }
+
+    consumePasswordResetChallenge(
+        challengeId: string,
+        now: Date,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.passwordResetChallenge.updateMany({
+            where: {
+                id: challengeId,
+                consumedAt: null,
+                verifiedAt: {
+                    not: null,
+                },
+                resetTokenHash: {
+                    not: null,
+                },
+                resetExpiresAt: {
+                    gt: now,
+                },
+            },
+            data: {
+                consumedAt: now,
+            },
+        });
+    }
 }

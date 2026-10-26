@@ -41,6 +41,10 @@ export const loginSchema = z.strictObject({
     ),
 });
 
+export const requestPasswordResetSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+});
+
 export const verifyEmailSchema = z.strictObject({
   token: z
     .string()

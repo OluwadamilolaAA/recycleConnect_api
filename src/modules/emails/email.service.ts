@@ -42,4 +42,33 @@ export class EmailService {
             tx,
         );
     }
+
+    async queuePasswordResetOtp(
+        data: {
+            to: string;
+            otp: string;
+            expiresAt: Date;
+        },
+        tx: Prisma.TransactionClient,
+    ) {
+        const text = [
+            "You requested a password reset for your RecycleConnect account.",
+            "",
+            `Your password reset code is: ${data.otp}`,
+            "",
+            `This code expires at ${data.expiresAt.toUTCString()}.`,
+            "",
+            "If you did not request a password reset, you can ignore this email.",
+        ].join("\n");
+
+        return this.emailRepository.create(
+            {
+                to: data.to,
+                subject: "Your RecycleConnect password reset code",
+                text,
+                expiresAt: data.expiresAt,
+            },
+            tx,
+        );
+    }
 }

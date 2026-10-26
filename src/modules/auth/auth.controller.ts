@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { loginSchema, registerSchema, sessionParamsSchema, verifyEmailSchema } from "./auth.schema.js";
+import { loginSchema, registerSchema, requestPasswordResetSchema, sessionParamsSchema, verifyEmailSchema } from "./auth.schema.js";
 import { AuthService } from "./auth.service.js";
 import { REFRESH_COOKIE_NAME, refreshCookieOptions } from "../../config/cookies.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
@@ -177,10 +177,10 @@ export class AuthController {
         const { sessionId } = sessionParamsSchema.parse(req.params);
 
         const result = await this.authService.revokeDeviceSession(
-                req.auth.userId,
-                req.auth.sessionId,
-                sessionId,
-            );
+            req.auth.userId,
+            req.auth.sessionId,
+            sessionId,
+        );
 
         if (sessionId === req.auth.sessionId) {
             res.clearCookie(
@@ -194,6 +194,24 @@ export class AuthController {
         res.status(200).json({
             success: true,
             ...result,
+        });
+    };
+
+    requestPasswordReset = async (
+        req: Request,
+        res: Response,
+    ) => {
+        const data = requestPasswordResetSchema.parse(req.body);
+
+        const result = await this.authService.requestPasswordReset(
+            data.email,
+        );
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            message: result.message,
         });
     };
 }
