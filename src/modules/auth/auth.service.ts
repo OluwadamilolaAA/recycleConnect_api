@@ -529,9 +529,9 @@ export class AuthService {
             );
 
             const account = await this.authRepository.findPasswordResetAccountById(
-                    user.id,
-                    tx,
-                );
+                user.id,
+                tx,
+            );
 
             if (
                 !account ||
@@ -542,9 +542,9 @@ export class AuthService {
             }
 
             const challenge = await this.authRepository.findLatestPasswordResetChallenge(
-                    account.id,
-                    tx,
-                );
+                account.id,
+                tx,
+            );
 
             const now = new Date();
 
@@ -613,5 +613,99 @@ export class AuthService {
         }
 
         return result;
+    }
+
+    // reset password
+    async resetPassword(
+        resetToken: string,
+        newPassword: string,
+    ) {
+        const resetTokenHash = hashToken(resetToken);
+
+        // Find the user ID so we know which user row to lock.
+        const existingChallenge =
+            await this.authRepository.findPasswordResetChallengeByResetTokenHash(
+                resetTokenHash,
+            );
+
+        if (!existingChallenge) {
+            throw new BadRequestError(
+                "Invalid or expired password reset token.",
+            );
+        }
+
+        // bcrypt is intentionally slow, so hash before opening
+        // the database transaction.
+        const passwordHash = await hashPassword(newPassword);
+
+        const resetCompleted = await prisma.$transaction(
+            async (tx) => {
+                await this.authRepository.lockUserForLogin(
+                    existingChallenge.userId,
+                    tx,
+                );
+
+                // Read the challenge again after acquiring the lock.
+                const challenge =
+                    await this.authRepository.findPasswordResetChallengeByResetTokenHash(
+                        resetTokenHash,
+                        tx,
+                    );
+
+                if (
+                    !challenge ||
+                    challenge.userId !== existingChallenge.userId
+                ) {
+                    return false;
+                }
+
+                const account =
+                    await this.authRepository.findPasswordResetAccountById(
+                        challenge.userId,
+                        tx,
+                    );
+
+                if (!account || account.status !== "ACTIVE") {
+                    return false;
+                }
+
+                const now = new Date();
+
+                const consumed =
+                    await this.authRepository.consumePasswordResetChallenge(
+                        challenge.id,
+                        now,
+                        tx,
+                    );
+
+                if (consumed.count !== 1) {
+                    return false;
+                }
+
+                await this.authRepository.updatePassword(
+                    account.id,
+                    passwordHash,
+                    tx,
+                );
+
+                await this.authRepository.revokeAllUserSessions(
+                    account.id,
+                    now,
+                    tx,
+                );
+
+                return true;
+            },
+        );
+
+        if (!resetCompleted) {
+            throw new BadRequestError(
+                "Invalid or expired password reset token.",
+            );
+        }
+
+        return {
+            message: "Password reset successfully.",
+        };
     }
 }

@@ -193,3 +193,11 @@ export const verifyPasswordResetOtpEmailLimiter =
                 .digest("hex");
         },
     });
+
+export const resetPasswordIpLimiter = createLimiter({
+    prefix: "reset-password-ip:",
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    message:
+        "Too many password reset attempts. Please try again later.",
+});

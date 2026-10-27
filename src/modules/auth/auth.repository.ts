@@ -436,9 +436,11 @@ export class AuthRepository {
 
     findPasswordResetChallengeByResetTokenHash(
         resetTokenHash: string,
-        tx: Prisma.TransactionClient,
+        tx?: Prisma.TransactionClient,
     ) {
-        return tx.passwordResetChallenge.findUnique({
+
+        const db = tx ?? prisma
+        return db.passwordResetChallenge.findUnique({
             where: {
                 resetTokenHash,
             },
@@ -469,4 +471,36 @@ export class AuthRepository {
             },
         });
     }
+
+    updatePassword(
+        userId: string,
+        passwordHash: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.user.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                passwordHash,
+            },
+        });
+    }
+
+    revokeAllUserSessions(
+        userId: string,
+        revokedAt: Date,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.session.updateMany({
+            where: {
+                userId,
+                revokedAt: null,
+            },
+            data: {
+                revokedAt,
+            },
+        });
+    }
+    
 }

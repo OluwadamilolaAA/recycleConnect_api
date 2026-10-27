@@ -41,6 +41,22 @@ export const loginSchema = z.strictObject({
     ),
 });
 
+export const resetPasswordSchema = z.object({
+  resetToken: z.string().regex(
+    /^[A-Za-z0-9_-]{43}$/,
+    "Invalid reset token",
+  ),
+
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .refine(
+      (password) =>
+        Buffer.byteLength(password, "utf8") <= 72,
+      "Password must not exceed 72 UTF-8 bytes",
+    ),
+});
+
 export const requestPasswordResetSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
 });

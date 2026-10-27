@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { loginSchema, registerSchema, requestPasswordResetSchema, sessionParamsSchema, verifyEmailSchema, verifyPasswordResetOtpSchema } from "./auth.schema.js";
+import { loginSchema, registerSchema, requestPasswordResetSchema, resetPasswordSchema, sessionParamsSchema, verifyEmailSchema, verifyPasswordResetOtpSchema } from "./auth.schema.js";
 import { AuthService } from "./auth.service.js";
 import { REFRESH_COOKIE_NAME, refreshCookieOptions } from "../../config/cookies.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
@@ -214,9 +214,9 @@ export class AuthController {
         const data = verifyPasswordResetOtpSchema.parse(req.body);
 
         const result = await this.authService.verifyPasswordResetOtp(
-                data.email,
-                data.otp,
-            );
+            data.email,
+            data.otp,
+        );
 
         res.set("Cache-Control", "no-store");
 
@@ -227,6 +227,22 @@ export class AuthController {
                 resetToken: result.resetToken,
                 expiresAt: result.resetExpiresAt,
             },
+        });
+    };
+
+    resetPassword = async (req: Request, res: Response) => {
+        const data = resetPasswordSchema.parse(req.body);
+
+        const result = await this.authService.resetPassword(
+            data.resetToken,
+            data.newPassword,
+        );
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            message: result.message,
         });
     };
 }
