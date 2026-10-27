@@ -230,3 +230,21 @@ export const resendVerificationEmailLimiter =
                 .digest("hex");
         },
     });
+
+export const changePasswordIpLimiter = createLimiter({
+    prefix: "change-password-ip:",
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    message:
+        "Too many password change attempts. Please try again later.",
+});
+
+export const changePasswordUserLimiter = createLimiter({
+    prefix: "change-password-user:",
+    windowMs: 60 * 60 * 1000,
+    limit: 10,
+    message:
+        "Too many password change attempts. Please try again later.",
+
+    keyGenerator: (req) => req.auth!.userId,
+});

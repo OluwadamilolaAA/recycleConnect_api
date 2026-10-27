@@ -15,4 +15,28 @@ export class UserRepository {
             }
         })
     }
+
+    updateName(userId: string, name: string) {
+        return prisma.user.updateMany({
+            where: {
+                id: userId,
+                status: "ACTIVE"
+            },
+            data: {
+                name
+            }
+        })
+    }
+
+    findPasswordForChange(userId: string) {
+        return prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            select: {
+                id: true,
+                passwordHash: true,
+            },
+        });
+    }
 }
