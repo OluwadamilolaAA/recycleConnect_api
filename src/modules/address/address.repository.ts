@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
-import type { CreateAddressInput } from "./address.schema.js";
+import type { CreateAddressInput, UpdateAddressInput } from "./address.schema.js";
 
 export class AddressRepository {
     create(userId: string, data: CreateAddressInput) {
@@ -23,6 +23,34 @@ export class AddressRepository {
             },
             orderBy: {
                 createdAt: "desc"
+            }
+        })
+    }
+
+    findOwnedAddress(userId: string, addressId: string){
+        return prisma.address.findFirst({
+            where: {
+                id: addressId,
+                userId
+            }
+        })
+    }
+
+    updateOwnedAddress(userId: string, addressId: string, data: UpdateAddressInput){
+        return prisma.address.updateMany({
+            where: {
+                id: addressId,
+                userId
+            },
+            data
+        })
+    }
+
+    deleteOwnedAddress(userId: string, addressId: string){
+        return prisma.address.deleteMany({
+            where: {
+                id: addressId,
+                userId
             }
         })
     }
