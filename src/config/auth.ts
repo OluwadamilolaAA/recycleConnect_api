@@ -13,4 +13,6 @@ export const AUTH_CONFIG = {
   passwordResetResendCooldownMs: 60 * 1000,
 
   passwordResetTokenLifetimeMs: 5 * 60 * 1000,
+
+  emailVerificationResendCooldownMs: 60 * 1000,
 } as const;

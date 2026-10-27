@@ -57,6 +57,10 @@ export const resetPasswordSchema = z.object({
     ),
 });
 
+export const resendVerificationEmailSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+});
+
 export const requestPasswordResetSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
 });

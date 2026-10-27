@@ -708,4 +708,95 @@ export class AuthService {
             message: "Password reset successfully.",
         };
     }
+
+    async resendVerificationEmail(email: string) {
+        const message =
+            "If an eligible account exists for this email, " +
+            "a verification email will be sent.";
+
+        const normalizedEmail = email.trim().toLowerCase();
+
+        const user = await this.authRepository.findByEmail(
+            normalizedEmail,
+        );
+
+        if (!user) {
+            return { message };
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await this.authRepository.lockUserForLogin(
+                user.id,
+                tx,
+            );
+
+            const account =
+                await this.authRepository.findEmailVerificationAccountById(
+                    user.id,
+                    tx,
+                );
+
+            if (
+                !account ||
+                account.email !== normalizedEmail ||
+                account.status !== "ACTIVE" ||
+                account.emailVerifiedAt !== null
+            ) {
+                return;
+            }
+
+            const now = new Date();
+
+            const latestToken =
+                await this.authRepository.findLatestEmailVerificationToken(
+                    account.id,
+                    tx,
+                );
+
+            if (latestToken) {
+                const nextAllowedTime =
+                    latestToken.createdAt.getTime() +
+                    AUTH_CONFIG.emailVerificationResendCooldownMs;
+
+                if (now.getTime() < nextAllowedTime) {
+                    return;
+                }
+            }
+
+            const verificationToken = generateToken();
+
+            const tokenHash = hashToken(verificationToken);
+
+            const expiresAt = new Date(
+                now.getTime() +
+                AUTH_CONFIG.emailVerificationLifetimeMs,
+            );
+
+            await this.authRepository.invalidateEmailVerificationTokens(
+                account.id,
+                now,
+                tx,
+            );
+
+            await this.authRepository.createEmailVerificationToken(
+                {
+                    userId: account.id,
+                    tokenHash,
+                    expiresAt,
+                },
+                tx,
+            );
+
+            await this.emailService.queueVerificationEmail(
+                {
+                    to: account.email,
+                    token: verificationToken,
+                    expiresAt,
+                },
+                tx,
+            );
+        });
+
+        return { message };
+    }
 }

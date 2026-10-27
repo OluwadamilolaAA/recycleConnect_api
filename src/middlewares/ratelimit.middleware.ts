@@ -201,3 +201,32 @@ export const resetPasswordIpLimiter = createLimiter({
     message:
         "Too many password reset attempts. Please try again later.",
 });
+
+export const resendVerificationIpLimiter =
+    createLimiter({
+        prefix: "resend-verification-ip:",
+        windowMs: 15 * 60 * 1000,
+        limit: 20,
+        message:
+            "Too many verification email requests. Please try again later.",
+    });
+
+export const resendVerificationEmailLimiter =
+    createLimiter({
+        prefix: "resend-verification-email:",
+        windowMs: 60 * 60 * 1000,
+        limit: 5,
+        message:
+            "Too many verification email requests. Please try again later.",
+
+        keyGenerator: (req) => {
+            const email =
+                typeof req.body?.email === "string"
+                    ? req.body.email.trim().toLowerCase()
+                    : "invalid-input";
+
+            return createHash("sha256")
+                .update(email)
+                .digest("hex");
+        },
+    });

@@ -502,5 +502,52 @@ export class AuthRepository {
             },
         });
     }
-    
+
+    findEmailVerificationAccountById(
+        userId: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.user.findUnique({
+            where: {
+                id: userId,
+            },
+            select: {
+                id: true,
+                email: true,
+                status: true,
+                emailVerifiedAt: true,
+            },
+        });
+    }
+
+    findLatestEmailVerificationToken(
+        userId: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.emailVerificationToken.findFirst({
+            where: {
+                userId,
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+    }
+
+    invalidateEmailVerificationTokens(
+        userId: string,
+        consumedAt: Date,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.emailVerificationToken.updateMany({
+            where: {
+                userId,
+                consumedAt: null,
+            },
+            data: {
+                consumedAt,
+            },
+        });
+    }
+
 }

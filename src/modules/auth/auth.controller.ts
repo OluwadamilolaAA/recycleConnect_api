@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { loginSchema, registerSchema, requestPasswordResetSchema, resetPasswordSchema, sessionParamsSchema, verifyEmailSchema, verifyPasswordResetOtpSchema } from "./auth.schema.js";
+import { loginSchema, registerSchema, requestPasswordResetSchema, resendVerificationEmailSchema, resetPasswordSchema, sessionParamsSchema, verifyEmailSchema, verifyPasswordResetOtpSchema } from "./auth.schema.js";
 import { AuthService } from "./auth.service.js";
 import { REFRESH_COOKIE_NAME, refreshCookieOptions } from "../../config/cookies.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
@@ -237,6 +237,21 @@ export class AuthController {
             data.resetToken,
             data.newPassword,
         );
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            message: result.message,
+        });
+    };
+
+    resendVerificationEmail = async ( req: Request, res: Response) => {
+        const data = resendVerificationEmailSchema.parse(req.body);
+
+        const result = await this.authService.resendVerificationEmail(
+                data.email,
+            );
 
         res.set("Cache-Control", "no-store");
 
