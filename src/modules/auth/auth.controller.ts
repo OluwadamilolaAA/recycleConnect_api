@@ -64,18 +64,6 @@ export class AuthController {
             );
         }
 
-        const user = await this.authService.getCurrentUser(
-            req.auth.userId,
-        );
-
-        res.set("Cache-Control", "no-store");
-
-        res.status(200).json({
-            success: true,
-            data: {
-                user,
-            },
-        });
     };
 
     refresh = async (req: Request, res: Response) => {
