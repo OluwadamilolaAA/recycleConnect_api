@@ -16,4 +16,8 @@ router.post("/", authenticate, requireActiveSession, authorizeRoles("ADMIN"), co
 
 router.get("/", authenticate, requireActiveSession, controller.listActive);
 
+router.get("/admin/all", authenticate, requireActiveSession, authorizeRoles("ADMIN"), controller.listAll);
+
+router.patch("/:materialId", authenticate, requireActiveSession, authorizeRoles("ADMIN"), controller.update);
+
 export default router;

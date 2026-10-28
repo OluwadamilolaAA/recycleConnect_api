@@ -30,6 +30,7 @@ model User {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  acceptedMaterials RecyclerMaterial[]
   addresses Address[]
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
@@ -130,6 +131,22 @@ model Material {
   name      String   @unique @db.VarChar(100)
   isActive  Boolean  @default(true)
 
+  recyclerMaterials RecyclerMaterial[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model RecyclerMaterial {
+  recyclerId String @db.Uuid
+  materialId String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  recycler User @relation(fields: [recyclerId], references: [id], onDelete: Cascade)
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+
+  @@id([recyclerId, materialId])
+  @@index([materialId])
 }
