@@ -8,6 +8,7 @@ import userRoutes from "./modules/users/user.routes.js"
 import addressRoutes from "./modules/address/address.route.js"
 import materialRoutes from "./modules/materials/material.route.js"
 import recyclerMaterialRoutes from "./modules/recyclers/recycler-material.routes.js"
+import pickupRoutes from "./modules/pickups/pickup.routes.js"
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 
 const app = express();
@@ -30,6 +31,7 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/address", addressRoutes);
 app.use("/api/v1/materials", materialRoutes)
 app.use("/api/v1/recylers", recyclerMaterialRoutes)
+app.use("/api/v1/pickups", pickupRoutes)
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
