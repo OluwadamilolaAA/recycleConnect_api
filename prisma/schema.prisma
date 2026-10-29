@@ -27,6 +27,13 @@ enum PickupStatus {
   CANCELLED
 }
 
+enum CollectorApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
 model User {
   id              String        @id @default(uuid()) @db.Uuid
   name            String        @db.VarChar(100)
@@ -45,6 +52,8 @@ model User {
   sessions                Session[]
   emailVerificationTokens EmailVerificationToken[]
   passwordResetChallenges PasswordResetChallenge[]
+  collectorProfile CollectorProfile? @relation("CollectorAccount")
+  reviewedCollectorProfiles CollectorProfile[] @relation("CollectorReviewer")
 }
 
 model Session {
@@ -203,4 +212,24 @@ model PickupItem {
 
   @@unique([pickupRequestId, materialId])
   @@index([materialId])
+}
+
+model CollectorProfile {
+  userId String @id @db.Uuid
+
+  approvalStatus CollectorApprovalStatus @default(PENDING)
+
+  reviewedAt      DateTime?
+  reviewedById    String?   @db.Uuid
+  rejectionReason String?   @db.VarChar(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("CollectorAccount", fields: [userId], references: [id], onDelete: Cascade)
+
+  reviewedBy User? @relation("CollectorReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([approvalStatus, createdAt])
+  @@index([reviewedById])
 }
