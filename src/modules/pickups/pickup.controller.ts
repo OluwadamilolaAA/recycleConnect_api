@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { PickupService } from "./pickup.service.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
-import { createPickupSchema } from "./pickup.schema.js";
+import { createPickupSchema, listPickupsSchema, pickupParamsSchema } from "./pickup.schema.js";
 
 export class PickupController {
     constructor(
@@ -24,5 +24,43 @@ export class PickupController {
                 pickup,
             },
         });
+    }
+
+    listMine = async (req: Request, res: Response) => {
+        if (!req.auth) {
+            throw new UnauthorizedError("Authentication is required")
+        }
+
+        const { page, limit } = listPickupsSchema.parse(req.query)
+        const result = await this.pickupService.getMyPickups(
+            req.auth.userId,
+            page,
+            limit
+        )
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            data: result,
+        });
+    }
+
+    getMine = async(req: Request, res: Response) => {
+        if(!req.auth){
+            throw new UnauthorizedError("Authentication is required")
+        }
+
+        const { pickupId } = pickupParamsSchema.parse(req.params)
+        const pickup = await this.pickupService.getMyPickup(req.auth.userId, pickupId)
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            data: {
+                pickup
+            }
+        })
     }
 }

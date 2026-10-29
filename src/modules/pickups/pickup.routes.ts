@@ -14,4 +14,20 @@ router.post(
     controller.create,
 );
 
+router.get(
+    "/",
+    authenticate,
+    requireActiveSession,
+    authorizeRoles("HOUSEHOLD"),
+    controller.listMine,
+);
+
+router.get(
+    "/:pickupId",
+    authenticate,
+    requireActiveSession,
+    authorizeRoles("HOUSEHOLD"),
+    controller.getMine,
+);
+
 export default router;

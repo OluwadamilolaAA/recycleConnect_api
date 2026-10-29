@@ -64,4 +64,32 @@ export class PickupService {
             );
         })
     }
+
+    async getMyPickups(householdId: string, page: number, limit: number){
+        const results = await this.pickupRepository.findAllByHouseholdId(
+            householdId,
+            page,
+            limit
+        )
+
+        return {
+            pickups: results.slice(0, limit),
+
+            pagination: {
+                page,
+                limit,
+                hasNextPage: results.length > limit,
+            }
+        }
+    }
+
+    async getMyPickup(pickupId: string, householdId: string){
+        const pickup = await this.pickupRepository.findOwnedPickup(pickupId, householdId)
+
+        if(!pickup){
+            throw new NotFoundError("Pickup not found")
+        }
+
+        return pickup
+    }
 }

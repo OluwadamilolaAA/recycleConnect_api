@@ -1,4 +1,5 @@
 import type { Prisma } from "../../generated/prisma/client.js";
+import { prisma } from "../../lib/prisma.js";
 
 export class PickupRepository {
     findOwnedAddress(
@@ -63,6 +64,48 @@ export class PickupRepository {
                 items: {
                     create: data.items,
                 },
+            },
+
+            include: {
+                items: true,
+            },
+        });
+    }
+
+    findAllByHouseholdId(
+        householdId: string,
+        page: number,
+        limit: number,
+    ) {
+        return prisma.pickupRequest.findMany({
+            where: {
+                householdId,
+            },
+
+            include: {
+                items: true,
+            },
+
+            orderBy: [
+                { createdAt: "desc" },
+                { id: "desc" },
+            ],
+
+            skip: (page - 1) * limit,
+
+            // Fetch one extra record to check for another page.
+            take: limit + 1,
+        });
+    }
+
+    findOwnedPickup(
+        pickupId: string,
+        householdId: string,
+    ) {
+        return prisma.pickupRequest.findFirst({
+            where: {
+                id: pickupId,
+                householdId,
             },
 
             include: {
