@@ -19,6 +19,14 @@ enum AccountStatus {
   SUSPENDED
 }
 
+enum PickupStatus {
+  PENDING
+  CLAIMED
+  AWAITING_CONFIRMATION
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id              String        @id @default(uuid()) @db.Uuid
   name            String        @db.VarChar(100)
@@ -30,6 +38,8 @@ model User {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
+  householdPickups PickupRequest[] @relation("HouseholdPickups")
+  collectorPickups PickupRequest[] @relation("CollectorPickups")
   acceptedMaterials RecyclerMaterial[]
   addresses Address[]
   sessions                Session[]
@@ -132,6 +142,7 @@ model Material {
   isActive  Boolean  @default(true)
 
   recyclerMaterials RecyclerMaterial[]
+  pickupItems PickupItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -148,5 +159,48 @@ model RecyclerMaterial {
   material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
 
   @@id([recyclerId, materialId])
+  @@index([materialId])
+}
+
+model PickupRequest {
+  id          String       @id @default(uuid()) @db.Uuid
+  householdId String       @db.Uuid
+  collectorId String?      @db.Uuid
+  status      PickupStatus @default(PENDING)
+  
+  street   String  @db.VarChar(255)
+  city     String  @db.VarChar(100)
+  state    String  @db.VarChar(100)
+  country  String  @db.VarChar(100)
+  landmark String? @db.VarChar(255)
+
+  notes String? @db.VarChar(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  household User @relation("HouseholdPickups", fields: [householdId], references: [id], onDelete: Restrict)
+  collector User? @relation("CollectorPickups", fields: [collectorId], references: [id], onDelete: Restrict)
+
+  items PickupItem[]
+
+  @@index([householdId, createdAt])
+  @@index([collectorId, createdAt])
+  @@index([status, createdAt])
+}
+
+model PickupItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  pickupRequestId String   @db.Uuid
+  materialId      String   @db.Uuid
+  materialName    String   @db.VarChar(100)
+
+  estimatedWeightKg Decimal? @db.Decimal(10, 3)
+
+  pickupRequest PickupRequest @relation(fields: [pickupRequestId], references: [id], onDelete: Cascade)
+
+  material Material @relation(fields: [materialId], references: [id], onDelete: Restrict)
+
+  @@unique([pickupRequestId, materialId])
   @@index([materialId])
 }
