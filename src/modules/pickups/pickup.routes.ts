@@ -30,4 +30,12 @@ router.get(
     controller.getMine,
 );
 
+router.post(
+    "/:pickupId/cancel",
+    authenticate,
+    requireActiveSession,
+    authorizeRoles("HOUSEHOLD"),
+    controller.cancelMine,
+);
+
 export default router;

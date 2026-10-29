@@ -113,4 +113,20 @@ export class PickupRepository {
             },
         });
     }
+
+    cancelPendingPickup(
+        pickupId: string,
+        householdId: string,
+    ) {
+        return prisma.pickupRequest.updateMany({
+            where: {
+                id: pickupId,
+                householdId,
+                status: "PENDING",
+            },
+            data: {
+                status: "CANCELLED",
+            },
+        });
+    }
 }

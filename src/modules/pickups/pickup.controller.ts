@@ -46,8 +46,8 @@ export class PickupController {
         });
     }
 
-    getMine = async(req: Request, res: Response) => {
-        if(!req.auth){
+    getMine = async (req: Request, res: Response) => {
+        if (!req.auth) {
             throw new UnauthorizedError("Authentication is required")
         }
 
@@ -63,4 +63,26 @@ export class PickupController {
             }
         })
     }
+
+    cancelMine = async (req: Request, res: Response) => {
+        if (!req.auth) {
+            throw new UnauthorizedError("Authentication is required.");
+        }
+
+        const { pickupId } = pickupParamsSchema.parse(
+            req.params,
+        );
+
+        const result = await this.pickupService.cancelMyPickup(
+            pickupId,
+            req.auth.userId,
+        );
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            message: result.message,
+        });
+    };
 }

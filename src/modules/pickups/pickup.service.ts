@@ -1,4 +1,5 @@
 import BadRequestError from "../../common/errors/bad-request.js";
+import ConflictError from "../../common/errors/conflict.error.js";
 import NotFoundError from "../../common/errors/not-found.error.js";
 import { prisma } from "../../lib/prisma.js";
 import { PickupRepository } from "./pickup.repository.js";
@@ -65,7 +66,7 @@ export class PickupService {
         })
     }
 
-    async getMyPickups(householdId: string, page: number, limit: number){
+    async getMyPickups(householdId: string, page: number, limit: number) {
         const results = await this.pickupRepository.findAllByHouseholdId(
             householdId,
             page,
@@ -83,13 +84,46 @@ export class PickupService {
         }
     }
 
-    async getMyPickup(pickupId: string, householdId: string){
+    async getMyPickup(pickupId: string, householdId: string) {
         const pickup = await this.pickupRepository.findOwnedPickup(pickupId, householdId)
 
-        if(!pickup){
+        if (!pickup) {
             throw new NotFoundError("Pickup not found")
         }
 
         return pickup
+    }
+
+    async cancelMyPickup(pickupId: string, householdId: string) {
+        const result = await this.pickupRepository.cancelPendingPickup(
+            pickupId,
+            householdId,
+        );
+
+        if (result.count === 1) {
+            return {
+                message: "Pickup request cancelled successfully.",
+            };
+        }
+
+        const pickup = await this.pickupRepository.findOwnedPickup(
+            pickupId,
+            householdId,
+        );
+
+        if (!pickup) {
+            throw new NotFoundError("Pickup request not found.");
+        }
+
+        // Repeating a successful cancellation is harmless.
+        if (pickup.status === "CANCELLED") {
+            return {
+                message: "Pickup request cancelled successfully.",
+            };
+        }
+
+        throw new ConflictError(
+            "Only pending pickup requests can be cancelled.",
+        );
     }
 }
