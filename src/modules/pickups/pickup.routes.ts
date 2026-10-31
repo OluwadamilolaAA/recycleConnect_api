@@ -24,12 +24,21 @@ router.get(
 );
 
 router.get(
-  "/available",
+    "/available",
+    authenticate,
+    requireActiveSession,
+    authorizeRoles("COLLECTOR"),
+    requireApprovedCollector,
+    controller.listAvailable,
+);
+
+router.get(
+  "/assigned",
   authenticate,
   requireActiveSession,
   authorizeRoles("COLLECTOR"),
   requireApprovedCollector,
-  controller.listAvailable,
+  controller.listAssigned,
 );
 
 router.get(
@@ -46,6 +55,24 @@ router.post(
     requireActiveSession,
     authorizeRoles("HOUSEHOLD"),
     controller.cancelMine,
+);
+
+router.post(
+    "/:pickupId/claim",
+    authenticate,
+    requireActiveSession,
+    authorizeRoles("COLLECTOR"),
+    requireApprovedCollector,
+    controller.claim,
+);
+
+router.get(
+  "/assigned/:pickupId",
+  authenticate,
+  requireActiveSession,
+  authorizeRoles("COLLECTOR"),
+  requireApprovedCollector,
+  controller.getAssigned,
 );
 
 export default router;

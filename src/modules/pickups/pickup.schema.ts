@@ -65,3 +65,30 @@ export const availablePickupsSchema = z.object({
 export type AvailablePickupsInput = z.infer<
     typeof availablePickupsSchema
 >;
+
+export const listAssignedPickupsSchema = z.object({
+    page: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(10_000)
+        .default(1),
+
+    limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .default(20),
+
+    status: z.enum([
+        "CLAIMED",
+        "AWAITING_CONFIRMATION",
+        "COMPLETED",
+        "CANCELLED",
+    ]).optional(),
+}).strict();
+
+export type ListAssignedPickupsInput = z.infer<
+    typeof listAssignedPickupsSchema
+>;

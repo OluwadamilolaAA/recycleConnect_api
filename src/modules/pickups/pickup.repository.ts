@@ -1,6 +1,6 @@
 import type { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
-import type { AvailablePickupsInput } from "./pickup.schema.js";
+import type { AvailablePickupsInput, ListAssignedPickupsInput } from "./pickup.schema.js";
 
 export class PickupRepository {
     findOwnedAddress(
@@ -187,6 +187,121 @@ export class PickupRepository {
 
             skip: (data.page - 1) * data.limit,
             take: data.limit + 1,
+        });
+    }
+
+    findCollectorApproval(
+        collectorId: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.collectorProfile.findUnique({
+            where: {
+                userId: collectorId,
+            },
+            select: {
+                approvalStatus: true,
+            },
+        });
+    }
+
+    claimPendingPickup(
+        pickupId: string,
+        collectorId: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.pickupRequest.updateMany({
+            where: {
+                id: pickupId,
+                status: "PENDING",
+                collectorId: null,
+
+                household: {
+                    role: "HOUSEHOLD",
+                    status: "ACTIVE",
+                    emailVerifiedAt: {
+                        not: null,
+                    },
+                },
+            },
+
+            data: {
+                collectorId,
+                status: "CLAIMED",
+            },
+        });
+    }
+
+    findPickupClaimState(
+        pickupId: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.pickupRequest.findUnique({
+            where: {
+                id: pickupId,
+            },
+            select: {
+                collectorId: true,
+                status: true,
+            },
+        });
+    }
+
+    findClaimedPickup(
+        pickupId: string,
+        collectorId: string,
+        tx: Prisma.TransactionClient,
+    ) {
+        return tx.pickupRequest.findFirst({
+            where: {
+                id: pickupId,
+                collectorId,
+            },
+            include: {
+                items: true,
+            },
+        });
+    }
+
+    findAssignedPickups(
+        collectorId: string,
+        data: ListAssignedPickupsInput,
+    ) {
+        return prisma.pickupRequest.findMany({
+            where: {
+                collectorId,
+
+                ...(data.status
+                    ? { status: data.status }
+                    : {}),
+            },
+
+            include: {
+                items: true,
+            },
+
+            orderBy: [
+                { createdAt: "desc" },
+                { id: "desc" },
+            ],
+
+            skip: (data.page - 1) * data.limit,
+            take: data.limit + 1,
+        });
+    }
+
+    findAssignedPickup(
+        pickupId: string,
+        collectorId: string,
+    ) {
+        return prisma.pickupRequest.findFirst({
+            where: {
+                id: pickupId,
+                collectorId,
+            },
+
+            include: {
+                items: true,
+            },
         });
     }
 }

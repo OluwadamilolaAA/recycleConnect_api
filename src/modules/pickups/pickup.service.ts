@@ -1,13 +1,17 @@
 import BadRequestError from "../../common/errors/bad-request.js";
 import ConflictError from "../../common/errors/conflict.error.js";
+import ForbiddenError from "../../common/errors/forbidden.error.js";
 import NotFoundError from "../../common/errors/not-found.error.js";
+import UnauthorizedError from "../../common/errors/unauthorized.error.js";
 import { prisma } from "../../lib/prisma.js";
+import { AuthRepository } from "../auth/auth.repository.js";
 import { PickupRepository } from "./pickup.repository.js";
-import type { AvailablePickupsInput, CreatePickupInput } from "./pickup.schema.js";
+import type { AvailablePickupsInput, CreatePickupInput, ListAssignedPickupsInput } from "./pickup.schema.js";
 
 export class PickupService {
     constructor(
-        private readonly pickupRepository = new PickupRepository()
+        private readonly pickupRepository = new PickupRepository(),
+        private readonly authRepository = new AuthRepository()
     ) { }
 
     async createPickup(householdId: string, data: CreatePickupInput) {
@@ -15,7 +19,7 @@ export class PickupService {
             const address = await this.pickupRepository.findOwnedAddress(data.addressId, householdId, tx)
 
             if (!address) {
-                throw new NotFoundError("Adress not found")
+                throw new NotFoundError("Address not found")
             }
 
             const materialIds = data.items.map((item) => item.materialId)
@@ -139,5 +143,135 @@ export class PickupService {
                 hasNextPage: results.length > data.limit,
             },
         };
+    }
+
+    async claimPickup(
+        pickupId: string,
+        collectorId: string,
+        sessionId: string,
+    ) {
+        return prisma.$transaction(async (tx) => {
+            await this.authRepository.lockUserForLogin(
+                collectorId,
+                tx,
+            );
+
+            const account = await this.authRepository.findLoginAccountById(
+                collectorId,
+                tx,
+            );
+
+            if (
+                !account ||
+                account.status !== "ACTIVE" ||
+                !account.emailVerifiedAt
+            ) {
+                throw new UnauthorizedError("Authentication is required.");
+            }
+
+            if (account.role !== "COLLECTOR") {
+                throw new ForbiddenError("Only collectors can claim pickups.");
+            }
+
+            const session = await this.authRepository.findActiveSession(
+                collectorId,
+                sessionId,
+                tx,
+            );
+
+            if (!session) {
+                throw new UnauthorizedError("Session expired or revoked. Please log in again.");
+            }
+
+            const profile = await this.pickupRepository.findCollectorApproval(
+                collectorId,
+                tx,
+            );
+
+            if (!profile || profile.approvalStatus !== "APPROVED") {
+                throw new ForbiddenError("Collector approval is required.");
+            }
+
+            const result = await this.pickupRepository.claimPendingPickup(
+                pickupId,
+                collectorId,
+                tx,
+            );
+
+            if (result.count !== 1) {
+                const existing = await this.pickupRepository.findPickupClaimState(
+                    pickupId,
+                    tx,
+                );
+
+                if (!existing) {
+                    throw new NotFoundError(
+                        "Pickup request not found.",
+                    );
+                }
+
+                const alreadyClaimedByMe =
+                    existing.collectorId === collectorId &&
+                    existing.status === "CLAIMED";
+
+                if (!alreadyClaimedByMe) {
+                    throw new ConflictError(
+                        "This pickup is no longer available to claim.",
+                    );
+                }
+            }
+
+            const pickup = await this.pickupRepository.findClaimedPickup(
+                pickupId,
+                collectorId,
+                tx,
+            );
+
+            if (!pickup) {
+                throw new NotFoundError(
+                    "Pickup request not found.",
+                );
+            }
+
+            return pickup;
+        });
+    }
+
+    async getMyAssignedPickups(
+        collectorId: string,
+        data: ListAssignedPickupsInput,
+    ) {
+        const results = await this.pickupRepository.findAssignedPickups(
+            collectorId,
+            data,
+        );
+
+        return {
+            pickups: results.slice(0, data.limit),
+
+            pagination: {
+                page: data.page,
+                limit: data.limit,
+                hasNextPage: results.length > data.limit,
+            },
+        };
+    }
+
+    async getMyAssignedPickup(
+        pickupId: string,
+        collectorId: string,
+    ) {
+        const pickup = await this.pickupRepository.findAssignedPickup(
+            pickupId,
+            collectorId,
+        );
+
+        if (!pickup) {
+            throw new NotFoundError(
+                "Pickup request not found.",
+            );
+        }
+
+        return pickup;
     }
 }
