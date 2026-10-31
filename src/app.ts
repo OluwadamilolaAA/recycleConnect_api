@@ -10,6 +10,7 @@ import materialRoutes from "./modules/materials/material.route.js"
 import recyclerMaterialRoutes from "./modules/recyclers/recycler-material.routes.js"
 import collectorRoutes from "./modules/collectors/collector.routes.js"
 import pickupRoutes from "./modules/pickups/pickup.routes.js"
+import collectorAdminRoutes from "./modules/collectors/collector-admin.routes.js"
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 
 const app = express();
@@ -34,6 +35,7 @@ app.use("/api/v1/materials", materialRoutes)
 app.use("/api/v1/recylers", recyclerMaterialRoutes)
 app.use("/api/v1/pickups", pickupRoutes)
 app.use("/api/v1/collectors", collectorRoutes)
+app.use("/api/v1/admin/collector-application", collectorAdminRoutes)
 
 app.get("/health", (_req, res) => {
   res.status(200).json({
