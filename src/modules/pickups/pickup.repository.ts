@@ -1,5 +1,6 @@
 import type { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../lib/prisma.js";
+import type { AvailablePickupsInput } from "./pickup.schema.js";
 
 export class PickupRepository {
     findOwnedAddress(
@@ -127,6 +128,65 @@ export class PickupRepository {
             data: {
                 status: "CANCELLED",
             },
+        });
+    }
+
+    findAvailable(data: AvailablePickupsInput) {
+        return prisma.pickupRequest.findMany({
+            where: {
+                status: "PENDING",
+                collectorId: null,
+
+                household: {
+                    role: "HOUSEHOLD",
+                    status: "ACTIVE",
+                    emailVerifiedAt: {
+                        not: null,
+                    },
+                },
+
+                ...(data.city
+                    ? {
+                        city: {
+                            equals: data.city,
+                            mode: "insensitive",
+                        },
+                    }
+                    : {}),
+
+                ...(data.state
+                    ? {
+                        state: {
+                            equals: data.state,
+                            mode: "insensitive",
+                        },
+                    }
+                    : {}),
+            },
+
+            select: {
+                id: true,
+                city: true,
+                state: true,
+                country: true,
+                createdAt: true,
+
+                items: {
+                    select: {
+                        materialId: true,
+                        materialName: true,
+                        estimatedWeightKg: true,
+                    },
+                },
+            },
+
+            orderBy: [
+                { createdAt: "asc" },
+                { id: "asc" },
+            ],
+
+            skip: (data.page - 1) * data.limit,
+            take: data.limit + 1,
         });
     }
 }

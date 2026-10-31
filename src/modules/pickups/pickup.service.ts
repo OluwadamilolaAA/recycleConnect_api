@@ -3,7 +3,7 @@ import ConflictError from "../../common/errors/conflict.error.js";
 import NotFoundError from "../../common/errors/not-found.error.js";
 import { prisma } from "../../lib/prisma.js";
 import { PickupRepository } from "./pickup.repository.js";
-import type { CreatePickupInput } from "./pickup.schema.js";
+import type { AvailablePickupsInput, CreatePickupInput } from "./pickup.schema.js";
 
 export class PickupService {
     constructor(
@@ -125,5 +125,19 @@ export class PickupService {
         throw new ConflictError(
             "Only pending pickup requests can be cancelled.",
         );
+    }
+
+    async getAvailablePickups(data: AvailablePickupsInput) {
+        const results = await this.pickupRepository.findAvailable(data);
+
+        return {
+            pickups: results.slice(0, data.limit),
+
+            pagination: {
+                page: data.page,
+                limit: data.limit,
+                hasNextPage: results.length > data.limit,
+            },
+        };
     }
 }

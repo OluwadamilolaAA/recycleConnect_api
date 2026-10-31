@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { PickupService } from "./pickup.service.js";
 import UnauthorizedError from "../../common/errors/unauthorized.error.js";
-import { createPickupSchema, listPickupsSchema, pickupParamsSchema } from "./pickup.schema.js";
+import { availablePickupsSchema, createPickupSchema, listPickupsSchema, pickupParamsSchema } from "./pickup.schema.js";
 
 export class PickupController {
     constructor(
@@ -83,6 +83,21 @@ export class PickupController {
         res.status(200).json({
             success: true,
             message: result.message,
+        });
+    };
+
+    listAvailable = async (req: Request, res: Response) => {
+        const data = availablePickupsSchema.parse(req.query);
+
+        const result = await this.pickupService.getAvailablePickups(
+            data,
+        );
+
+        res.set("Cache-Control", "no-store");
+
+        res.status(200).json({
+            success: true,
+            data: result,
         });
     };
 }

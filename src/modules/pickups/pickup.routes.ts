@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticate, requireActiveSession } from "../../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../../middlewares/authorize.middleware.js";
 import { PickupController } from "./pickup.controller.js";
+import { requireApprovedCollector } from "../../middlewares/collector.middleware.js";
 
 const router = Router();
 const controller = new PickupController();
@@ -20,6 +21,15 @@ router.get(
     requireActiveSession,
     authorizeRoles("HOUSEHOLD"),
     controller.listMine,
+);
+
+router.get(
+  "/available",
+  authenticate,
+  requireActiveSession,
+  authorizeRoles("COLLECTOR"),
+  requireApprovedCollector,
+  controller.listAvailable,
 );
 
 router.get(

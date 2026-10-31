@@ -41,3 +41,27 @@ export const listPickupsSchema = z.object({
 
     limit: z.coerce.number().int().min(1).max(50).default(20),
 });
+
+export const availablePickupsSchema = z.object({
+    page: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(10_000)
+        .default(1),
+
+    limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .default(20),
+
+    city: z.string().trim().min(1).max(100).optional(),
+
+    state: z.string().trim().min(1).max(100).optional(),
+}).strict();
+
+export type AvailablePickupsInput = z.infer<
+    typeof availablePickupsSchema
+>;
